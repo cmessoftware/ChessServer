@@ -20,6 +20,7 @@ class ChessGame(models.Model):
     ]
     
     board = models.CharField(default="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR", max_length=100, blank=False)
+    event = models.CharField(default="Online game", max_length=50, blank=False)
     player_white = models.CharField(default="", max_length=50, blank=False)  
     player_black = models.CharField(default="", max_length=50, blank=False)
     player_white_time = models.IntegerField(default=0)

@@ -1,0 +1,5 @@
+attrs==24.2.0
+chess==1.11.1
+chess.com==3.7.0
+python-chess==1.999
+requests==2.32.3

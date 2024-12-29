@@ -13,7 +13,7 @@ from .models import ChessGame
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi 
 from .serializers import ChessGameSerializer
-from chess_game.utils import is_null_or_empty,make_engine_move
+from chess_game.utils import is_null_or_empty,make_engine_move,get_dic_value_by_key
 
 
 
@@ -95,6 +95,17 @@ class MakeMoveView(APIView):
                 board.push(chess.Move.from_uci(self.moves))
                 game.board = board.fen()
                 game.moves += f" {self.moves}"
+                
+                #Check if the game is over
+                if(board.is_checkmate()):
+                    game.result = "1-0" if board.turn == chess.BLACK else "0-1"
+                    game.game_over = True
+                    game.game_over_reason = get_dic_value_by_key(game.GAME_OVER_REASON_CHOICES, "checkmate")
+                elif(board.is_stalemate()):
+                    game.result = "1/2-1/2"
+                    game.game_over = True
+                    game.game_over_reason = get_dic_value_by_key(game.GAME_OVER_REASON_CHOICES, "stalemate")
+                
                 game.save()
                 
                 #Get engine move
@@ -155,6 +166,8 @@ class AcceptDrawView(APIView):
             if game.draw_offered_by:
                 game.draw_accepted = True
                 game.result = "1/2-1/2"
+                game.game_over = True
+                game.game_over_reason = get_dic_value_by_key(game.GAME_OVER_REASON_CHOICES, "agreed_draw")
                 game.save()
                 return Response(ChessGameSerializer(game).data)
                 
@@ -196,7 +209,10 @@ class ResignGameView(APIView):
     def post(self, request, pk):
         try:
             game = ChessGame.objects.get(pk=pk)
+            board = chess.Board(game.board)
             game.resign = True
+            game.result = "1-0" if board.turn == chess.BLACK else "0-1"
+            game.game_over_reason = get_dic_value_by_key(game.GAME_OVER_REASON_CHOICES, "resign")
             game.save()
             return Response(ChessGameSerializer(game).data)
         except ChessGame.DoesNotExist:

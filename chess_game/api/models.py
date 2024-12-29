@@ -14,8 +14,8 @@ class ChessGame(models.Model):
         ('insufficient_material', 'Insufficient material'),
         ('fifty_moves', 'Fifty moves'),
         ('time_control', 'Time control'),
-        ('resignation', 'Resignation'),
         ('draw_offer', 'Draw offer'),
+        ('resign', 'Resignation'),
         ('agreed_draw', 'Agreed draw'),
     ]
     
@@ -34,7 +34,7 @@ class ChessGame(models.Model):
     )
     initial_time = models.IntegerField(default=0)  # Initial time in seconds
     increment = models.IntegerField(default=0)  # Increment in seconds
-    draw_offered_by = models.CharField(default="", max_length=5, null=True, blank=True)
+    draw_offered_by = models.CharField(default="", max_length=50, null=True, blank=True)
     draw_accepted = models.BooleanField(default=False)
     resign = models.BooleanField(default=False)
     pgn = models.TextField(default="")

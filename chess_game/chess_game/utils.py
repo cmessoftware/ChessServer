@@ -24,3 +24,11 @@ def make_engine_move( game, board):
             return True
         except Exception:
             return False
+        
+def get_dic_value_by_key(dic, key):
+    # Convert to a dictionary for quick access
+    dictionary = dict(dic)
+
+    # Access the key for 'Rapid'
+    value = next(v for k, v in dictionary.items() if k == key)
+    return value

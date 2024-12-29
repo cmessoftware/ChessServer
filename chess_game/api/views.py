@@ -5,21 +5,34 @@ import chess
 import chess.pgn
 from stockfish import Stockfish
 from rest_framework.response import Response
+from rest_framework import serializers
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework import status
 from .models import ChessGame
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi 
 from .serializers import ChessGameSerializer
-from io import StringIO
+from chess_game.utils import is_null_or_empty
 
 
 
 STOCKFISH_PATH = r"C:\app\stockfish\stockfish-windows-x86-64-avx2.exe"
 stockfish = Stockfish(STOCKFISH_PATH)
 
+class SecureView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_description="Access a secure endpoint",
+        responses={200: "This is a secure endpoint!"}
+    )
+    def get(self, request):
+        return Response({"message": "This is a secure endpoint!"})
 
 class StartGameView(APIView):
+    permission_classes = [IsAuthenticated]
+
     @swagger_auto_schema(
         operation_description="Start a new chess game",
         responses={201: ChessGameSerializer()},
@@ -27,10 +40,29 @@ class StartGameView(APIView):
     def post(self, request):
         board = chess.Board()
         game = ChessGame.objects.create(board=board.fen())
+        player_white = request.data.get("player_white")
+        player_black = request.data.get("player_black")
+        if(player_white.strip() and player_black.strip()):
+            raise serializers.ValidationError("Player White and Player Black fields cannot be set simultaneously.")
+        
+        if(not is_null_or_empty(request.data.get("player_white"))):
+            game.player_white = request.data.get("player_white")
+            game.player_black = "Chess Engine"
+        elif(not is_null_or_empty(request.data.get("player_black"))):
+            game.player_black = request.data.get("player_black")
+            game.player_white = "Chess Engine"
+        else:
+            raise serializers.ValidationError("Player White or Player Black field cannot be empty.")   
+            
+        game.game_mode = request.data.get("game_mode")
+        game.initial_time = request.data.get("initial_time")
+        game.increment = request.data.get("increment")
+        game.save()
         
         return Response(ChessGameSerializer(game).data, status=status.HTTP_201_CREATED)
         
 class MakeMoveView(APIView):
+    permission_classes = [IsAuthenticated]
     @swagger_auto_schema(
         operation_description="Make a move in the chess game",
         request_body=openapi.Schema(
@@ -57,8 +89,7 @@ class MakeMoveView(APIView):
                 return Response({"move": "Invalid move."}, status=status.HTTP_400_BAD_REQUEST)
             board.push(chess.Move.from_uci(self.moves))
             game.board = board.fen()
-            moves = self.add_move(self.moves)
-            game.moves = self.moves
+            game.moves += f" {self.moves}"
             game.save()
             #Get stockfish move
             stockfish.set_fen_position(board.fen())
@@ -66,19 +97,15 @@ class MakeMoveView(APIView):
             if stockfish_move:
                 board.push(chess.Move.from_uci(stockfish_move))
                 game.board = board.fen()
+                game.moves += f" {stockfish_move}"
                 game.save()
             return Response(ChessGameSerializer(game).data)
         except ChessGame.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
         
-    def add_move(self, uci_move):
-        if not self.moves:
-            self.moves = uci_move
-        else:
-            self.moves += f" {uci_move}"
-        return self.moves
-        
+    
 class OfferDrawView(APIView):
+    permission_classes = [IsAuthenticated]
     @swagger_auto_schema(
         operation_description="Offer a draw in the chess game",
         request_body=openapi.Schema(
@@ -107,6 +134,7 @@ class OfferDrawView(APIView):
             return Response({"error: Game not found"}, status=status.HTTP_404_NOT_FOUND)
         
 class AcceptDrawView(APIView):
+    permission_classes = [IsAuthenticated]
     @swagger_auto_schema(
         operation_description="Accept a draw in the chess game",
         responses={
@@ -130,6 +158,7 @@ class AcceptDrawView(APIView):
         
         
 class RejectDrawView(APIView):
+    permission_classes = [IsAuthenticated]
     @swagger_auto_schema(
         operation_description="Reject a draw offer in the chess game",
         responses={
@@ -150,6 +179,7 @@ class RejectDrawView(APIView):
             return Response({"error: Game not found"}, status=status.HTTP_404_NOT_FOUND)
         
 class ResignGameView(APIView):
+    permission_classes = [IsAuthenticated]
     @swagger_auto_schema(
         operation_description="Resign from the chess game",
         responses={
@@ -167,6 +197,7 @@ class ResignGameView(APIView):
             return Response({"error: Game not found"}, status=status.HTTP_404_NOT_FOUND)
         
 class GameCurrentStateView(APIView):
+    permission_classes = [IsAuthenticated]
     @swagger_auto_schema(
         operation_description="Get the current state of the chess game",
         responses={
@@ -182,6 +213,7 @@ class GameCurrentStateView(APIView):
             return Response({"error: Game not found"}, status=status.HTTP_404_NOT_FOUND)
         
 class GamePgnView(APIView):
+    permission_classes = [IsAuthenticated]
     @swagger_auto_schema(
         operation_description="Get the PGN of the chess game",
         responses={

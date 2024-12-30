@@ -14,12 +14,13 @@ class ChessGame(models.Model):
         ('insufficient_material', 'Insufficient material'),
         ('fifty_moves', 'Fifty moves'),
         ('time_control', 'Time control'),
-        ('resignation', 'Resignation'),
         ('draw_offer', 'Draw offer'),
+        ('resign', 'Resignation'),
         ('agreed_draw', 'Agreed draw'),
     ]
     
     board = models.CharField(default="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR", max_length=100, blank=False)
+    event = models.CharField(default="Online game", max_length=50, blank=False)
     player_white = models.CharField(default="", max_length=50, blank=False)  
     player_black = models.CharField(default="", max_length=50, blank=False)
     player_white_time = models.IntegerField(default=0)
@@ -33,7 +34,7 @@ class ChessGame(models.Model):
     )
     initial_time = models.IntegerField(default=0)  # Initial time in seconds
     increment = models.IntegerField(default=0)  # Increment in seconds
-    draw_offered_by = models.CharField(default="", max_length=5, null=True, blank=True)
+    draw_offered_by = models.CharField(default="", max_length=50, null=True, blank=True)
     draw_accepted = models.BooleanField(default=False)
     resign = models.BooleanField(default=False)
     pgn = models.TextField(default="")

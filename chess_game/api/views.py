@@ -1,7 +1,7 @@
 from django.shortcuts import render
 
 # Create your views here.
-import chess
+import datetime
 import chess.pgn
 from stockfish import Stockfish
 from rest_framework.response import Response
@@ -13,7 +13,7 @@ from .models import ChessGame
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi 
 from .serializers import ChessGameSerializer
-from chess_game.utils import is_null_or_empty
+from chess_game.utils import is_null_or_empty,make_engine_move,get_dic_value_by_key
 
 
 
@@ -51,6 +51,8 @@ class StartGameView(APIView):
         elif(not is_null_or_empty(request.data.get("player_black"))):
             game.player_black = request.data.get("player_black")
             game.player_white = "Chess Engine"
+            board = chess.Board(game.board)
+            make_engine_move(game, board)  #The engine will make the first move
         else:
             raise serializers.ValidationError("Player White or Player Black field cannot be empty.")   
             
@@ -58,7 +60,7 @@ class StartGameView(APIView):
         game.initial_time = request.data.get("initial_time")
         game.increment = request.data.get("increment")
         game.save()
-        
+     
         return Response(ChessGameSerializer(game).data, status=status.HTTP_201_CREATED)
         
 class MakeMoveView(APIView):
@@ -82,26 +84,41 @@ class MakeMoveView(APIView):
         try:
             game = ChessGame.objects.get(pk=pk)
             self.moves = request.data.get("moves")
+            
             if not self.moves:
-                return Response({"moves": "This field is required."}, status=status.HTTP_400_BAD_REQUEST)
-            board = chess.Board(game.board)
-            if chess.Move.from_uci(self.moves) not in board.legal_moves:
-                return Response({"move": "Invalid move."}, status=status.HTTP_400_BAD_REQUEST)
-            board.push(chess.Move.from_uci(self.moves))
-            game.board = board.fen()
-            game.moves += f" {self.moves}"
-            game.save()
-            #Get stockfish move
-            stockfish.set_fen_position(board.fen())
-            stockfish_move = stockfish.get_best_move()
-            if stockfish_move:
-                board.push(chess.Move.from_uci(stockfish_move))
+                return Response({"move": "Move not provided."}, status=status.HTTP_400_BAD_REQUEST)
+            else:   
+                board = chess.Board(game.board)
+                if chess.Move.from_uci(self.moves) not in board.legal_moves:
+                    return Response({"move": "Invalid move."}, status=status.HTTP_400_BAD_REQUEST)
+            
+                board.push(chess.Move.from_uci(self.moves))
                 game.board = board.fen()
-                game.moves += f" {stockfish_move}"
+                game.moves += f" {self.moves}"
+                
+                #Check if the game is over
+                if(board.is_checkmate()):
+                    game.result = "1-0" if board.turn == chess.BLACK else "0-1"
+                    game.game_over = True
+                    game.game_over_reason = get_dic_value_by_key(game.GAME_OVER_REASON_CHOICES, "checkmate")
+                elif(board.is_stalemate()):
+                    game.result = "1/2-1/2"
+                    game.game_over = True
+                    game.game_over_reason = get_dic_value_by_key(game.GAME_OVER_REASON_CHOICES, "stalemate")
+                
                 game.save()
+                
+                #Get engine move
+                board = chess.Board(game.board)
+                if(not make_engine_move(game, board)):
+                    return Response({"error": "Invalid engine move."}, status=status.HTTP_400_BAD_REQUEST)
+                    
+                
             return Response(ChessGameSerializer(game).data)
         except ChessGame.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
+
+    
         
     
 class OfferDrawView(APIView):
@@ -149,6 +166,8 @@ class AcceptDrawView(APIView):
             if game.draw_offered_by:
                 game.draw_accepted = True
                 game.result = "1/2-1/2"
+                game.game_over = True
+                game.game_over_reason = get_dic_value_by_key(game.GAME_OVER_REASON_CHOICES, "agreed_draw")
                 game.save()
                 return Response(ChessGameSerializer(game).data)
                 
@@ -190,7 +209,10 @@ class ResignGameView(APIView):
     def post(self, request, pk):
         try:
             game = ChessGame.objects.get(pk=pk)
+            board = chess.Board(game.board)
             game.resign = True
+            game.result = "1-0" if board.turn == chess.BLACK else "0-1"
+            game.game_over_reason = get_dic_value_by_key(game.GAME_OVER_REASON_CHOICES, "resign")
             game.save()
             return Response(ChessGameSerializer(game).data)
         except ChessGame.DoesNotExist:
@@ -224,23 +246,29 @@ class GamePgnView(APIView):
     def get(self, request, pk):
         try:
             game = ChessGame.objects.get(pk=pk)
-            initial_fen = game.initial_fen
+            fen = game.initial_fen  
             uci_moves = game.moves
-            pgn = self.generate_pgn(initial_fen, uci_moves, player1="Alice", player2="Bob")
-            print(f'PGN: \n {pgn}')
+            pgn = self.generate_pgn(fen, uci_moves, game.player_white, game.player_black, game.result, game.event)
+            game.pgn = pgn
+            game.fen = game.board
+            game.save()
             return Response(pgn)
         except ChessGame.DoesNotExist:
             return Response({"error: Game not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as ex:
+            return Response({"error: An error occurred",ex}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-    def generate_pgn(self,fen, uci_moves, player1="Player1", player2="Player2",result="*", game_event="Example"):
+    def generate_pgn(self,fen, uci_moves, player_white, player_black,game_result, game_event):
         """
         Generate a PGN string from an initial FEN and a sequence of UCI moves.
 
         Args:
-            fen (str): The starting FEN of the game.
+            fen (str): The current FEN of the game.
             uci_moves (str): Space-separated UCI moves.
-            player1 (str): Name of Player 1 (White).
-            player2 (str): Name of Player 2 (Black).
+            player_white (str): Name of the White player.
+            player_black (str): Name of the Black player.
+            game_result (str): Result of the game.
+            game_event (str): Event name of the game.
 
         Returns:
             str: PGN representation of the game.
@@ -251,10 +279,13 @@ class GamePgnView(APIView):
         # Create a PGN game object
         game = chess.pgn.Game()
         game.headers["Event"] = game_event
-        game.headers["White"] = player1
-        game.headers["Black"] = player2
+        game.headers["White"] = player_white
+        game.headers["Black"] = player_black
         game.headers["FEN"] = fen
-        game.headers["Result"] = result  # Replace with actual result later
+        game.headers["Result"] = game_result  
+        game.headers["Date"] = datetime.datetime.now().strftime("%Y.%m.%d")
+        game.headers["Round"] = "1"
+        game.headers["Site"] = "ChessServer"
   
         # Replay the moves on the board and populate the PGN object
         node = game
@@ -263,6 +294,8 @@ class GamePgnView(APIView):
             board.push_uci(move)
             node = next_node
 
+        node.root().headers["FEN"] = game.board().fen()
+    
         # Save the PGN as a string
         pgn_string = node.root().accept(chess.pgn.StringExporter())
         return pgn_string

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chessboard</title>
+    {% load static %}
+    <!-- Load jQuery first -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Load Chessboard.js -->
+    <link rel="stylesheet" href="{% static 'css/chessboard-1.0.0.min.css' %}">
+    <script src="{% static 'js/chessboard-1.0.0.min.js' %}"></script>
+    <style>
+        #board {
+            margin: 20px auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chessboard</h1>
+    <div id="board" style="width: 400px"></div>
+
+    <script>
+        var board = Chessboard('board', {
+            position: 'start',
+            draggable: true,
+            pieceTheme: '/static/img/chesspieces/wikipedia/{piece}.png'
+        });
+    </script>
+</body>
+</html>

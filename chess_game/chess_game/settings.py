@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 from django.core.management.utils import get_random_secret_key
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -41,6 +42,8 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
     'SIGNING_KEY': get_random_secret_key(),  # Generates a random secret key
     'ALGORITHM': 'HS256',
 }
@@ -76,7 +79,7 @@ ROOT_URLCONF = 'chess_game.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],  # Add your template directory here
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -88,6 +91,12 @@ TEMPLATES = [
         },
     },
 ]
+
+# Ensure STATIC_URL and STATICFILES_DIRS are set for static files like CSS and JS
+STATIC_URL = '/static/'  
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]  # Where your custom static files are located
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # Where collectstatic will collect static files
+
 
 WSGI_APPLICATION = 'chess_game.wsgi.application'
 

@@ -25,6 +25,7 @@ class ChessGame(models.Model):
     player_black = models.CharField(default="", max_length=50, blank=False)
     player_white_time = models.IntegerField(default=0)
     player_black_time = models.IntegerField(default=0)
+    current_turn = models.CharField(default="white", max_length=50, blank=False)
     initial_fen = models.CharField(max_length=255, default="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", blank=False)
     moves = models.TextField(default="", blank=True)  # Space-separated UCI moves eg. e2e4 e7e5 g1f3 b8c6 f1b5
     game_mode = models.CharField(

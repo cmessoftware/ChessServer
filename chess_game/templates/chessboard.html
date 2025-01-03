@@ -10,22 +10,117 @@
     <!-- Load Chessboard.js -->
     <link rel="stylesheet" href="{% static 'css/chessboard-1.0.0.min.css' %}">
     <script src="{% static 'js/chessboard-1.0.0.min.js' %}"></script>
-    <style>
+    <!-- Load Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Load Bootstrap JS and dependencies -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+    <script src="{% static 'js/chessgame.js' %}?v={{ timestamp }}"></script>
+   <style>
         #board {
             margin: 20px auto;
+        }
+        .list-group-item {
+            width: 20ch;
+            text-align: left;
+        }
+
+        {% comment %} .list-group-item-value {
+            width: 50ch;
+            text-align: left;
+        } {% endcomment %}
+
+        #fen {
+            width: 15ch;
         }
     </style>
 </head>
 <body>
-    <h1>Chessboard</h1>
-    <div id="board" style="width: 400px"></div>
-
-    <script>
-        var board = Chessboard('board', {
-            position: 'start',
-            draggable: true,
-            pieceTheme: '/static/img/chesspieces/wikipedia/{piece}.png'
-        });
-    </script>
-</body>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="row justify-content-center">
+                    <div class="col-md-12 text-center">
+                        <h2>Chessboard</h2>
+                        <p>Drag and drop pieces to move them. Enter a FEN string to set a custom position.</p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12 text-center">
+                        <div id="alertBox"></div>
+                        <div id="board" style="width: 400px; align-self: center;"></div>
+                        <button id="startBtn" onclick="resetPosition()">Reset Position</button>
+                        <input type="text" id="fen" placeholder="Enter FEN">
+                        <button id="setFenBtn" onclick="applyFEN()">Set Position</button>
+                        <button id="loadGameBtn" onclick="loadGame(1)">Load Game</button>
+                        <input type="text" id="username" placeholder="Username">
+                        <input type="password" id="password" placeholder="Password">
+                        <button id="loginBtn" onclick="login(document.getElementById('username').value, document.getElementById('password').value)">Login</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="row justify-content-center">
+                    <div class="col-md-12 text-center">
+                        <h2>PGN Viewer</h2>
+                        <div class="accordion" id="pgwAccordion">
+                            <div class="card">
+                                <div class="card-header" id="headingOne">
+                                    <h2 class="mb-0">
+                                        <button class="btn btn-link" type="button" data-toggle="collapse" data-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                                            PGN Viewer
+                                        </button>
+                                    </h2>
+                                </div>
+                                <div id="collapseOne" class="collapse show" aria-labelledby="headingOne" data-parent="#accordionExample">
+                                    <div class="card-body">
+                                        <textarea id="pgn" rows="10" class="form-control" placeholder="Paste PGN here..."></textarea>
+                                        <button id="loadPgnBtn" class="btn btn-primary mt-2" onclick="loadPGN()">Load PGN</button>
+                                        <button id="viewPgnBtn" class="btn btn-secondary mt-2" onclick="viewPGN()">View PGN</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="row justify-content-center">
+                    <div class="col-md-12 text-center">
+                        <h2>Game Features</h2>
+                        <div class="row">
+                            <div class="col-md-6 text-left">
+                                <ul class="list-group">
+                                    <li class="list-group-item"><strong>Game Id:</strong></li>
+                                    <li class="list-group-item"><strong>Event:</strong></li>
+                                    <li class="list-group-item"><strong>Round:</strong></li>
+                                    <li class="list-group-item"><strong>White Player:</strong></li>
+                                    <li class="list-group-item"><strong>Black Player:</strong></li>
+                                    <li class="list-group-item"><strong>Current FEN:</strong></li>
+                                    <li class="list-group-item"><strong>Open:</strong></li>
+                                    <li class="list-group-item"><strong>Result:</strong></li>
+                                    <li class="list-group-item"><strong>Result Reason:</strong></li>
+                                </ul>
+                               
+                            </div>
+                            <div class="col-md-6 text-left">
+                                <ul class="list-group">
+                                    <li class="list-group-item">{{ gameId }}</li>
+                                    <li class="list-group-item">{{ event }}</li>
+                                    <li class="list-group-item">{{ round }}</li>
+                                    <li class="list-group-item">{{ white_player }}</li>
+                                    <li class="list-group-item">{{ black_player }}</li>
+                                    <li class="list-group-item">{{ current_fen }}</li>
+                                    <li class="list-group-item">{{ open }}</li>
+                                    <li class="list-group-item">{{ result }}</li>
+                                    <li class="list-group-item">{{ result_reason }}</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+  </body>
 </html>

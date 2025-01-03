@@ -14,12 +14,65 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi 
 from .serializers import ChessGameSerializer
 from chess_game.utils import is_null_or_empty,make_engine_move,get_dic_value_by_key
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import authenticate
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
 
 
 
 STOCKFISH_PATH = r"C:\app\stockfish\stockfish-windows-x86-64-avx2.exe"
 stockfish = Stockfish(STOCKFISH_PATH)
+DRAW_RESULT = "1/2-1/2"
 
+
+class  LoginView(TokenObtainPairView):
+    @swagger_auto_schema(
+        operation_description="User login",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'username': openapi.Schema(type=openapi.TYPE_STRING, description='Username'),
+                'password': openapi.Schema(type=openapi.TYPE_STRING, description='Password')
+            },
+            required=['username', 'password']
+        ),
+        responses={
+            200: "Login successful",
+            400: "Invalid credentials"
+        }
+    )
+    def post(self, request):
+        username = request.data.get('username')
+        password = request.data.get('password')
+
+        user = authenticate(username=username, password=password)
+        if user is not None:
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+            })
+        else:
+            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+class RefreshTokenView(TokenRefreshView):
+    pass
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            refresh_token = request.data.get("refresh")
+            token = RefreshToken(refresh_token)
+            token.blacklist()  # Blacklist the refresh token
+            return Response({"message": "Logout successful."})
+        except Exception as e:
+            return Response({"error": "Invalid token."}, status=400)
+    
 class SecureView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -85,6 +138,9 @@ class MakeMoveView(APIView):
             game = ChessGame.objects.get(pk=pk)
             self.moves = request.data.get("moves")
             
+            if(game.game_over):
+                return Response({"error": "Game is over."}, status=status.HTTP_400_BAD_REQUEST)
+            
             if not self.moves:
                 return Response({"move": "Move not provided."}, status=status.HTTP_400_BAD_REQUEST)
             else:   
@@ -97,14 +153,7 @@ class MakeMoveView(APIView):
                 game.moves += f" {self.moves}"
                 
                 #Check if the game is over
-                if(board.is_checkmate()):
-                    game.result = "1-0" if board.turn == chess.BLACK else "0-1"
-                    game.game_over = True
-                    game.game_over_reason = get_dic_value_by_key(game.GAME_OVER_REASON_CHOICES, "checkmate")
-                elif(board.is_stalemate()):
-                    game.result = "1/2-1/2"
-                    game.game_over = True
-                    game.game_over_reason = get_dic_value_by_key(game.GAME_OVER_REASON_CHOICES, "stalemate")
+                self.check_game_status(game, board)
                 
                 game.save()
                 
@@ -117,6 +166,28 @@ class MakeMoveView(APIView):
             return Response(ChessGameSerializer(game).data)
         except ChessGame.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
+
+    def check_game_status(self, game, board):
+       
+        def set_game_over(result, reason_key):
+            game.result = result
+            game.game_over = True
+            game.game_over_reason = get_dic_value_by_key(game.GAME_OVER_REASON_CHOICES, reason_key)
+
+        def check_and_set_game_over(condition, result, reason_key):
+            if condition:
+                set_game_over(result, reason_key)
+
+        WON_RESULT = "1-0" if board.turn == chess.BLACK else "0-1"
+        check_and_set_game_over(board.is_checkmate(), WON_RESULT, "checkmate")
+        check_and_set_game_over(board.is_stalemate(), DRAW_RESULT, "stalemate")
+        check_and_set_game_over(board.is_insufficient_material(), DRAW_RESULT, "insufficient_material")
+        check_and_set_game_over(board.is_seventyfive_moves(), DRAW_RESULT, "seventyfive_moves")
+        check_and_set_game_over(board.is_fivefold_repetition(), DRAW_RESULT, "fivefold_repetition")
+        check_and_set_game_over(board.is_variant_draw(), DRAW_RESULT, "variant_draw")
+        check_and_set_game_over(board.is_variant_mate(), WON_RESULT, "variant_mate")
+        check_and_set_game_over(board.is_variant_loss(), WON_RESULT, "variant_loss")
+        check_and_set_game_over(board.is_variant_win(), WON_RESULT, "variant_win")
 
     
         
@@ -165,7 +236,7 @@ class AcceptDrawView(APIView):
             game = ChessGame.objects.get(pk=pk)
             if game.draw_offered_by:
                 game.draw_accepted = True
-                game.result = "1/2-1/2"
+                game.result = DRAW_RESULT
                 game.game_over = True
                 game.game_over_reason = get_dic_value_by_key(game.GAME_OVER_REASON_CHOICES, "agreed_draw")
                 game.save()
@@ -257,7 +328,8 @@ class GamePgnView(APIView):
             return Response({"error: Game not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as ex:
             return Response({"error: An error occurred",ex}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+     
+         
     def generate_pgn(self,fen, uci_moves, player_white, player_black,game_result, game_event):
         """
         Generate a PGN string from an initial FEN and a sequence of UCI moves.

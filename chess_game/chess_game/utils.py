@@ -9,7 +9,7 @@ stockfish = Stockfish(STOCKFISH_PATH)
 def is_null_or_empty(value):
     return value is None or value == "" or (hasattr(value, '__len__') and len(value) == 0)
 
-def make_engine_move( game, board):
+def make_engine_move( game, board) -> str:
         try:
             stockfish.set_fen_position(board.fen())
             engine_move = stockfish.get_best_move()
@@ -17,11 +17,10 @@ def make_engine_move( game, board):
                 game.board = board.fen()
                 game.moves += f" {engine_move}"
                 if chess.Move.from_uci(engine_move) not in board.legal_moves:
-                    return False
+                    return ""
                 board.push(chess.Move.from_uci(engine_move))
                 game.board = board.fen()
-                game.save()
-            return True
+            return engine_move
         except Exception:
             return False
         

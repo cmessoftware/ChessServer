@@ -7,10 +7,11 @@ from .views import (
                     RejectDrawView,
                     ResignGameView,
                     MakeMoveView,
-                    GameCurrentStateView,
+                    GetGameView,
                     GamePgnView,
                     SecureView,
-                    LoginView
+                    LoginView,
+                    ResetGameView
                )
 from django.urls import path, re_path
 from rest_framework import permissions
@@ -44,7 +45,7 @@ urlpatterns = [
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
     re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
     path('login/', LoginView.as_view(), name='token_obtain_pair'),
-    path('start/', StartGameView.as_view(),
+    path('start-game/', StartGameView.as_view(),
          name='start-game'),
     path('move/<int:pk>/', MakeMoveView.as_view(),
          name='make-move'),
@@ -56,8 +57,10 @@ urlpatterns = [
          name='reject-draw'),
     path('resign-game/<int:pk>/', ResignGameView.as_view(),
          name='resign-game'),
-    path('get-game/<int:pk>/', GameCurrentStateView.as_view(),
+    path('get-game/<int:pk>/', GetGameView.as_view(),
          name='get-game'),
     path('get-pgn/<int:pk>/', GamePgnView.as_view(),
          name='get-pgn'),
+    path('reset-game/<int:pk>/', ResetGameView.as_view(),
+         name='reset-game'),
 ]

@@ -19,8 +19,9 @@ class ChessGameSerializer(serializers.ModelSerializer):
     player_black_time = serializers.IntegerField(required=False)
     player_white_time = serializers.IntegerField(required=False)
     turn = serializers.CharField(max_length=10, required=False, allow_blank=True)
- 
- 
+    game_over_date = serializers.DateTimeField(required=False)
+    winner = serializers.CharField(max_length=50, required=False, allow_blank=True)
+  
     class Meta:
         model = ChessGame
         fields = "__all__"

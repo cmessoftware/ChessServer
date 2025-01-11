@@ -68,6 +68,7 @@
                     </div>
                     <div class="row">
                         <button id="startBtn" onclick="startGame()">Start Game</button>
+                        <button id="resignBtn" onclick="resign()">Resign</button>
                         <button id="resetBtn" onclick="resetPosition()">Reset Position</button>
                         <button id="undoBtn" onclick="undoMove()" disabled=true title="(Pending)Undo the last move">Undo Move</button>
                         <button id="clearBtn" onclick="clearBoard()" title="Clear the board">Clear Board</button>
@@ -76,8 +77,7 @@
                         <button id="getFenBtn" onclick="getFEN()" title="Get the FEN">Get FEN</button>
                         <button id="getPgnBtn" onclick="getPGN()" title="Get the PGN">Get PGN</button>
                         <button id="saveGameBtn" onclick="saveGame()" title="Save the game">Save Game</button>
-                        {% comment %} <button id="resetGameBtn" onclick="resetGame()" title="Reset the game">Reset Game</button> {% endcomment %}
-                        <input type="text" id="fen" placeholder="Enter FEN" title="Enter FEN">
+                       <input type="text" id="fen" placeholder="Enter FEN" title="Enter FEN">
                         <button id="setFenBtn" onclick="applyFEN()" title="Set the position using FEN">Set Position</button>
                         <button id="loadGameBtn" onclick="loadGame(1)" title="Load the game" alt="Pending">Load Game</button>
                         <input type="text" id="username" placeholder="Username" title="Enter your username">

@@ -210,6 +210,50 @@ class MakeMoveView(APIView):
         # check_and_set_game_over(board.is_variant_loss(), WON_RESULT, "variant_loss")
         # check_and_set_game_over(board.is_variant_win(), WON_RESULT, "variant_win")
 
+
+class GameOverView(APIView):
+    permission_classes = [IsAuthenticated]
+    @swagger_auto_schema(
+        operation_description="End the chess game",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'result': openapi.Schema(type=openapi.TYPE_STRING, description='The result of the game'),
+                'game_over_date': openapi.Schema(type=openapi.TYPE_STRING, description='The date when the game ended'),
+                'winner': openapi.Schema(type=openapi.TYPE_STRING, description='The winner of the game'),
+                'game_over_reason': openapi.Schema(type=openapi.TYPE_STRING, description='The reason the game ended')
+            },
+        ),
+        responses={
+            200: ChessGameSerializer(),
+            400: "Result not provided",
+            404: "Game not found",
+            500: "Internal server error"
+        }
+    )
+    def post(self, request, pk):
+        try:
+            game = ChessGame.objects.get(pk=pk)
+            result = request.data.get("result")
+            game_over_date = request.data.get("game_over_date")
+            winner = request.data.get("winner")
+            game_over_reason = request.data.get("game_over_reason")
+            
+            if is_null_or_empty(result):
+                return Response({"error": "Result not provided."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            game.result = result
+            game.game_over = True
+            game.game_over_date = game_over_date
+            game.winner = winner
+            game.game_over_reason = get_dic_value_by_key(game.GAME_OVER_REASON_CHOICES, game_over_reason)
+            game.save()
+            return Response(ChessGameSerializer(game).data)
+        except ChessGame.DoesNotExist:
+            return Response({"error": "Game not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": "Internal server error", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 class ResetGameView(APIView):
     permission_classes = [IsAuthenticated]
     @swagger_auto_schema(

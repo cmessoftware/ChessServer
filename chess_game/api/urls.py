@@ -11,7 +11,8 @@ from .views import (
                     GamePgnView,
                     SecureView,
                     LoginView,
-                    ResetGameView
+                    ResetGameView,
+                    GameOverView
                )
 from django.urls import path, re_path
 from rest_framework import permissions
@@ -63,4 +64,6 @@ urlpatterns = [
          name='get-pgn'),
     path('reset-game/<int:pk>/', ResetGameView.as_view(),
          name='reset-game'),
+    path('game-over/', GameOverView.as_view(),
+         name='game-over'),
 ]

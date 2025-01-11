@@ -35,9 +35,6 @@ class ChessGame(models.Model):
     )
     initial_time = models.IntegerField(default=0)  # Initial time in seconds
     increment = models.IntegerField(default=0)  # Increment in seconds
-    draw_offered_by = models.CharField(default="", max_length=50, null=True, blank=True)
-    draw_accepted = models.BooleanField(default=False)
-    resign = models.BooleanField(default=False)
     pgn = models.TextField(default="")
     game_over = models.BooleanField(default=False)
     game_over_reason = models.CharField(
@@ -45,6 +42,8 @@ class ChessGame(models.Model):
         choices=GAME_OVER_REASON_CHOICES,
         blank=True   
     )
+    game_over_date = models.DateTimeField(auto_now_add=True)
+    winner = models.CharField(default="*", max_length=50, blank=True) #Game winner (white or black)
     result = models.CharField(default="*", max_length=10, blank=True) #Game result 1-0 ,0-1 ,1/2-1/2
     orientation = models.CharField(default="white", max_length=10, blank=True)
     

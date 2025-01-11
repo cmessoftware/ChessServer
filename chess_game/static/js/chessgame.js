@@ -1,33 +1,44 @@
 
   
-  
   const  game = new Chess()
   let  board = null
   const $status = $('#status')
   const $fen = $('#fen')
   const $pgn = $('#pgn')
-  
-  
-  const onDrop = (source, target, piece) => {
+  const VALID_GAME_OVER_REASON = [
+    'checkmate', 'stalemate', 'threefold_repetition', 'insufficient_material', 
+    'fifty_moves', 'time_control', 'draw_offer', 'resign', 'agreed_draw'
+  ];
+  const onDrop = async (source, piece) => {
     const targetSquare = (source?.square || source).target; // Ensure valid target
     const sourceSquare = (source?.square || source).source; // Ensure valid source
-    console.log('sourceSquare',sourceSquare);
+    console.log('sourceSquare', sourceSquare);
     console.log('targetSquare', targetSquare);
 
-    //Update Sync the board with the game
+    // Update Sync the board with the game
     board.move(`${sourceSquare}-${targetSquare}`);
+    // Set the position using the FEN string
+    game.load(board.fen());
+    console.log('board.fen()', board.fen());
+
+    const onDragStartFen = localStorage.getItem('fen');
+    console.log('onDragStartFen', onDragStartFen);
+    console.log('game fen', game.fen());
+    console.log('chessboard.board', board.fen());
+
+    game.load(board.fen());
 
     if (!(source?.square || source) || !(source?.square || source).target) {
-        console.error('Invalid source or target:', (source?.square || source), targetSquare);
-        return 'snapback';
+      console.error('Invalid source or target:', (source?.square || source), targetSquare);
+      return 'snapback';
     }
 
     const moveData = {
-        gameId: localStorage.getItem('gameId'),
-        source: sourceSquare,
-        target: targetSquare,
-        piece: piece,
-        moves: `${sourceSquare}${targetSquare}`
+      gameId: localStorage.getItem('gameId'),
+      source: sourceSquare,
+      target: targetSquare,
+      piece: piece,
+      moves: `${sourceSquare}${targetSquare}`
     };
 
     console.log('Move data:', moveData);
@@ -36,9 +47,10 @@
 
     // Check if there's a piece on the source square
     const pieceInfo = game.get(sourceSquare);
+    console.log('Piece info:', pieceInfo);
     if (!pieceInfo) {
-        console.error(`Piece at source square: ${sourceSquare} not found`);
-        return 'snapback';
+      console.error(`Piece at source square: ${sourceSquare} not found`);
+      return 'snapback';
     }
     console.log(`Piece on source square: ${pieceInfo.type} (${pieceInfo.color})`);
 
@@ -46,48 +58,47 @@
     console.log('Legal moves for sourceSquare:', legalMoves);
 
     const isMoveLegal = legalMoves.some(
-        move => move.from === sourceSquare && move.to === targetSquare
+      move => move.from === sourceSquare && move.to === targetSquare
     );
-    
+
     console.log('Current game position (FEN):', game.fen());
 
-    // if (!isMoveLegal) {
-    //     console.error(`Move from ${sourceSquare} to ${targetSquare} is not legal.`);
-    //     return 'snapback';
-    // }
+    if (!isMoveLegal) {
+      console.error(`Move from ${sourceSquare} to ${targetSquare} is not legal.`);
+      return 'snapback';
+    }
 
     // Check for promotion (optional)
     const isPromotion = pieceInfo.type === 'p' && (
-        (targetSquare[1] === '8' && pieceInfo.color === 'w') || 
-        (targetSquare[1] === '1' && pieceInfo.color === 'b')
+      (targetSquare[1] === '8' && pieceInfo.color === 'w') ||
+      (targetSquare[1] === '1' && pieceInfo.color === 'b')
     );
 
     const movePiece = game.move({
-        from: sourceSquare,
-        to: targetSquare,
-        promotion: isPromotion ? 'q' : undefined // Promote to queen if needed
+      from: sourceSquare,
+      to: targetSquare,
+      promotion: isPromotion ? 'q' : undefined // Promote to queen if needed
     });
 
-    
+    console.log('movePiece:', movePiece);
 
     if (movePiece === null) {
-        console.error(`Invalid move: ${sourceSquare} to ${targetSquare}`);
-        return 'snapback';
+      console.error(`Invalid move: ${sourceSquare} to ${targetSquare}`);
+      return 'snapback';
     }
 
     console.log(`Move made: ${movePiece.san}`);
 
-    const gameStatus = move(moveData); // Call your move handler
-    console.log('Return move:', gameStatus);
-    if(gameStatus !== null) {
-      updateStatus(gameStatus); // Update the game status
-    }
-    else
-    {
-      console.error('Error making move');
-      return 'snapback';
-    }
-};
+    move(moveData)
+      .then(data => {
+        console.log('Move server response:', data);
+        updateStatus(data);
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        showMessage(error.message, 'danger');
+      });
+};  // end of onDrop
 
 
   const onDragMove = (newLocation, oldLocation, source, piece, position, orientation) => {
@@ -102,19 +113,12 @@
 
   const onDragStart = async (piece) => {
     console.log('gameId', localStorage.getItem('gameId'));
-    const chessgame = await loadGame(localStorage.getItem('gameId'));
-    if (chessgame !== null && chessgame !== undefined) {
-      console.log('Chess game:', chessgame);
-      console.log('Piece:', piece);
-    } else {
-      console.error('Error loading game');
-    }
     // do not pick up pieces if the game is over
-    if (chessgame.game_over) return false;
+    if (game.game_over) return false;
 
     // only pick up pieces for the side to move
-    if ((chessgame.turn === 'white' && piece.piece.search(/^b/) !== -1) ||
-        (chessgame.turn === 'black' && piece.piece.search(/^w/) !== -1)) {
+    if ((game.turn === 'white' && piece.piece.search(/^b/) !== -1) ||
+        (game.turn === 'black' && piece.piece.search(/^w/) !== -1)) {
       console.log('Invalid piece', piece.piece.search(/^b/), piece.piece.search(/^w/));
       return false;
     }
@@ -135,7 +139,7 @@
           localStorage.setItem('accessToken', newAccessToken);
         }
     }
-    //If the error get in data (no catched by the try block)
+    //If the error gets in data (not caught by the try block)
     if(error.code === "token_not_valid")
     {
       const refreshToken = localStorage.getItem('refreshToken');
@@ -147,16 +151,48 @@
     return error.status;
   };
 
+  const move = async (moveData) => {
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken) {
+      showMessage('Please login to make a move', 'danger');
+      return null;
+    }
+    console.log('accessToken', accessToken);
+  
+    try {
+      const response = await fetch(`http://localhost:8000/api/move/${moveData.gameId}/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(moveData)
+      });
+      const data = await response.json();
+      console.log('MakeMove server response:', data);
+      console.log('data', data);
+      return data;
+    } catch (error) {
+      console.error('Error:', error);
+      if (handle401Error(error) === 401) {
+        return move(moveData);
+      }
+      showMessage(error.message, 'danger');
+      return null;
+    }
+  };
+
   
   const updateStatus = async (gameStatus) => {
    
     if(gameStatus === null || gameStatus === undefined) {
-      gameStatus = await loadGame(localStorage.getItem('gameId'));
+      //gameStatus = await loadGame(localStorage.getItem('gameId'));
+      return null;
     };
 
     console.log('gameStatus:', gameStatus);
     //Sync the board with the game
-    board.position(gameStatus.board)
+    board.position(gameStatus.board,'slow')
     // Set the position using the FEN string
     const success = game.load(gameStatus.board);
 
@@ -164,7 +200,7 @@
         console.log('FEN successfully loaded!');
         console.log('Current FEN:', game.fen());
     } else {
-        console.error('Invalid FEN:', fen);
+        console.error('Invalid FEN:', game.fen());
     }
 
     let status = ''
@@ -177,13 +213,44 @@
     // checkmate?
     if (game.in_checkmate()) {
       status = 'Game over, ' + moveColor + ' is in checkmate.'
+      gameOver(new Date(), gameStatus.turn, 'checkmate');
     }
   
     // draw?
     else if (game.in_draw()) {
       status = 'Game over, drawn position'
-    }
-  
+      let reason = "";
+
+      switch (true) {
+        case game.in_stalemate():
+          reason = 'stalemate';
+          break;
+        case game.in_threefold_repetition():
+          reason = 'threefold_repetition';
+          break;
+        case game.insufficient_material():
+          reason = 'insufficient_material';
+          break;
+        case game.in_fifty_moves():
+          reason = 'fifty_moves';
+          break;
+        case game.in_time_control():
+          reason = 'time_control';
+          break;
+        case game.draw_offer():
+          reason = 'draw_offer';
+          break;
+        case game.resign():
+          reason = 'resign';
+          break;
+        case game.agreed_draw():
+          reason = 'agreed_draw';
+          break;
+        default:
+          reason = 'unknown';
+      }
+      gameOver(new Date(), '*', reason);
+    }  
     // game still on
     else {
       status = moveColor + ' to move'
@@ -198,6 +265,38 @@
     $fen.html(game.fen())
     $pgn.html(game.pgn())
  }
+
+ const gameOver = (gameOverDate, winner, endType) => {
+
+    if (!VALID_END_GAME.includes(endType)) {
+      console.error('Invalid end type:', endType);
+      return;
+    }
+
+    console.log('Game over:', gameOverDate, winner, gameOverReason);
+    // Call the DRF endpoint
+    fetch('http://localhost:8000/api/game-over/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+      },
+      body: JSON.stringify({
+        gameId: localStorage.getItem('gameId'),
+        game_over_date: gameOverDate,
+        winner: winner,
+        game_over_reason: gameOverReason
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log('Server response:', data);
+    })
+    .catch(error => {
+      console.error('Error:', error);
+    });
+  };
+
 
   // update the board position after the piece snap
   // for castling, en passant, pawn promotion
@@ -217,7 +316,7 @@
     }
 
     board = Chessboard2('#board', config);
-    updateStatus()
+    //updateStatus()
   });
 
   const login = (username, password) => {
@@ -256,6 +355,34 @@
     }
  }
 
+ 
+ const resetGame = () => {
+
+    const accessToken = localStorage.getItem('accessToken');
+    if(!accessToken) {
+      showMessage('Please login to start game', 'danger');
+    }
+    console.log('resetGame accessToken', accessToken);
+    const gameId = localStorage.getItem('gameId');
+    fetch(`http://localhost:8000/api/reset-game/${gameId}/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body : JSON.stringify({gameId: gameId})
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log('Server response:', data);
+      board.position(data.position);
+    })
+    .catch(error => {
+      console.error('Error:', error);
+    });
+  };
+
+
  const updateAccessToken = async () => {
     const refreshToken = localStorage.getItem('refreshToken');
     if(refreshToken) {
@@ -274,8 +401,9 @@
     if(!accessToken) {
       showMessage('Please login to start game', 'danger');
     }
-    console.log('accessToken', accessToken);
+    console.log('startGame accessToken', accessToken);
 
+    game.reset();
     board.position(game.fen());
 
     const startData = {
@@ -310,55 +438,21 @@
         startGame();
       }
       showMessage(error.message, 'danger');
-    });
-  };
+    }); 
 
 
-  const move = (moveData) => {
-   
-    const accessToken = localStorage.getItem('accessToken');
-    if(!accessToken) {
-      showMessage('Please login to make a move', 'danger');
-      return null;
-    }
-    console.log('accessToken', accessToken);
-
-    // Call the DRF endpoint
-    fetch(`http://localhost:8000/api/move/${moveData.gameId}/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
-      },
-      body: JSON.stringify(moveData)
-    })
-    .then(response => response.json())
-    .then(data => {
-      console.log('MakeMove server response:', data);
     
-      const chessBoardMove = getChessBoardMove(data.moves);
-      console.log('chessBoardMove', chessBoardMove);
-      return data;
-    })
-    .catch(error => {
-      console.error('Error:', error);
-      if(handle401Error(error) === 401) {
-        move(moveData);
-      }
-      showMessage(error.message, 'danger');
-    });
-  };
 
-  const getChessBoardMove = (move) => {
-    const source = move.trim().substring(0, 2);
-    const target = move.trim().substring(2, 4);
+  const getChessBoardMove = (movement) => {
+    const source = movement.trim().substring(0, 2);
+    const target = movement.trim().substring(2, 4);
     return {
       from: source,
       to: target,
       promotion: 'q', // Always promote to queen for example simplicity
       moveCode: `${source}-${target}`
     };
-  };
+  }};
   
   const handle401Error = (error) => {
     if(error.status === 401)
@@ -390,6 +484,11 @@
   }
 
   const loadGame = async (id) => {
+
+    if(id === null || id === undefined) {
+      console.error('Invalid game id:', id);
+      return null;
+    }
     const accessToken = localStorage.getItem('accessToken');
     if(!accessToken) {
       showMessage('Please login to make a move', 'danger');
@@ -422,28 +521,7 @@
 
   window.resetPosition = resetPosition;
 
-  const resetGame = () => {
-    const gameId = localStorage.getItem('gameId');
-    fetch(`http://localhost:8000/api/reset-game/${gameId}/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`  
-      },
-      body : JSON.stringify({gameId: gameId})
-    })
-    .then(response => response.json())
-    .then(data => {
-      console.log('Server response:', data);
-      board.position(data.position);
-    })
-    .catch(error => {
-      console.error('Error:', error);
-    });
-  };
-
-  window.resetGame = resetGame;
-
+ 
   // Apply the FEN position from the input field
   const applyFEN = () => {
     const fen = document.getElementById('fen').value.trim();

@@ -20,12 +20,15 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
+import random
+from math import trunc
 
 
 
 STOCKFISH_PATH = r"C:\app\stockfish\stockfish-windows-x86-64-avx2.exe"
 stockfish = Stockfish(STOCKFISH_PATH)
 DRAW_RESULT = "1/2-1/2"
+ENGINE_PLAYER = "stockfish"
 
 
 class  LoginView(TokenObtainPairView):
@@ -93,26 +96,40 @@ class StartGameView(APIView):
     def post(self, request):
         board = chess.Board()
         game = ChessGame.objects.create(board=board.fen())
-        player_white = request.data.get("player_white")
-        player_black = request.data.get("player_black")
-        if(player_white.strip() and player_black.strip()):
-            raise serializers.ValidationError("Player White and Player Black fields cannot be set simultaneously.")
+        opponent = request.data.get("opponent")
         
-        if(not is_null_or_empty(request.data.get("player_white"))):
-            game.player_white = request.data.get("player_white")
-            game.player_black = "Chess Engine"
-        elif(not is_null_or_empty(request.data.get("player_black"))):
-            game.player_black = request.data.get("player_black")
-            game.player_white = "Chess Engine"
-            board = chess.Board(game.board)
-            make_engine_move(game, board)  #The engine will make the first move
-        else:
-            raise serializers.ValidationError("Player White or Player Black field cannot be empty.")   
+        if is_null_or_empty(opponent):
+            return Response({"error": "Opponent not provided."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if opponent == "human":
+            if random.randint(0, 1) == 0:
+                game.player_white = request.user.username
+                game.player_black = request.data.get("opponent_user")
+            else:
+                game.player_white = request.data.get("opponent_user")
+                game.player_black = request.user.username
+        elif opponent == "engine":
+            if random.randint(0, 1) == 0:
+                game.player_white = request.user.username
+                game.player_black = ENGINE_PLAYER
+            else:
+                game.player_white = ENGINE_PLAYER
+                game.player_black = request.user.username
+                game.orientation = "black"
             
         game.game_mode = request.data.get("game_mode")
         game.initial_time = request.data.get("initial_time")
         game.increment = request.data.get("increment")
+        game.result = "*" if request.data.get("result") == "" or request.data.get("result") == None else request.data.get("result")
         game.save()
+        
+        #white player makes the first move
+        if game.player_white == ENGINE_PLAYER:
+            game.moves = make_engine_move(game, board)
+            game.orientation = "black"
+            if(game.moves == ""):
+                return Response({"error": "Invalid engine move."}, status=status.HTTP_400_BAD_REQUEST)
+            game.save()
      
         return Response(ChessGameSerializer(game).data, status=status.HTTP_201_CREATED)
         
@@ -137,6 +154,7 @@ class MakeMoveView(APIView):
         try:
             game = ChessGame.objects.get(pk=pk)
             self.moves = request.data.get("moves")
+            self.engine_move = ""
             
             if(game.game_over):
                 return Response({"error": "Game is over."}, status=status.HTTP_400_BAD_REQUEST)
@@ -154,13 +172,16 @@ class MakeMoveView(APIView):
                 
                 #Check if the game is over
                 self.check_game_status(game, board)
-                
                 game.save()
                 
                 #Get engine move
                 board = chess.Board(game.board)
-                if(not make_engine_move(game, board)):
+                self.engine_move = make_engine_move(game, board)
+                if(self.engine_move == ""):
                     return Response({"error": "Invalid engine move."}, status=status.HTTP_400_BAD_REQUEST)
+                
+                self.check_game_status(game, board)
+                game.save()
                     
                 
             return Response(ChessGameSerializer(game).data)
@@ -184,12 +205,79 @@ class MakeMoveView(APIView):
         check_and_set_game_over(board.is_insufficient_material(), DRAW_RESULT, "insufficient_material")
         check_and_set_game_over(board.is_seventyfive_moves(), DRAW_RESULT, "seventyfive_moves")
         check_and_set_game_over(board.is_fivefold_repetition(), DRAW_RESULT, "fivefold_repetition")
-        check_and_set_game_over(board.is_variant_draw(), DRAW_RESULT, "variant_draw")
-        check_and_set_game_over(board.is_variant_mate(), WON_RESULT, "variant_mate")
-        check_and_set_game_over(board.is_variant_loss(), WON_RESULT, "variant_loss")
-        check_and_set_game_over(board.is_variant_win(), WON_RESULT, "variant_win")
+        # check_and_set_game_over(board.is_variant_draw(), DRAW_RESULT, "variant_draw")
+        # check_and_set_game_over(board.is_variant_mate(), WON_RESULT, "variant_mate")
+        # check_and_set_game_over(board.is_variant_loss(), WON_RESULT, "variant_loss")
+        # check_and_set_game_over(board.is_variant_win(), WON_RESULT, "variant_win")
 
-    
+
+class GameOverView(APIView):
+    permission_classes = [IsAuthenticated]
+    @swagger_auto_schema(
+        operation_description="End the chess game",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'result': openapi.Schema(type=openapi.TYPE_STRING, description='The result of the game'),
+                'game_over_date': openapi.Schema(type=openapi.TYPE_STRING, description='The date when the game ended'),
+                'winner': openapi.Schema(type=openapi.TYPE_STRING, description='The winner of the game'),
+                'game_over_reason': openapi.Schema(type=openapi.TYPE_STRING, description='The reason the game ended')
+            },
+        ),
+        responses={
+            200: ChessGameSerializer(),
+            400: "Result not provided",
+            404: "Game not found",
+            500: "Internal server error"
+        }
+    )
+    def post(self, request, pk):
+        try:
+            game = ChessGame.objects.get(pk=pk)
+            result = request.data.get("result")
+            game_over_date = request.data.get("game_over_date")
+            winner = request.data.get("winner")
+            game_over_reason = request.data.get("game_over_reason")
+            
+            if is_null_or_empty(result):
+                return Response({"error": "Result not provided."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            game.result = result
+            game.game_over = True
+            game.game_over_date = game_over_date
+            game.winner = winner
+            game.game_over_reason = get_dic_value_by_key(game.GAME_OVER_REASON_CHOICES, game_over_reason)
+            game.save()
+            return Response(ChessGameSerializer(game).data)
+        except ChessGame.DoesNotExist:
+            return Response({"error": "Game not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": "Internal server error", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class ResetGameView(APIView):
+    permission_classes = [IsAuthenticated]
+    @swagger_auto_schema(
+        operation_description="Reset the chess game",
+        responses={
+            200: ChessGameSerializer(),
+            404: "Game not found"
+        }
+    )
+    def post(self, request, pk):
+        try:
+            game = ChessGame.objects.get(pk=pk)
+            game.board = chess.Board().fen()
+            game.moves = ""
+            game.result = ""
+            game.game_over = False
+            game.game_over_reason = ""
+            game.draw_offered_by = None
+            game.draw_accepted = False
+            game.resign = False
+            game.save()
+            return Response(ChessGameSerializer(game).data)
+        except ChessGame.DoesNotExist:
+            return Response({"error: Game not found"}, status=status.HTTP_404_NOT_FOUND)    
         
     
 class OfferDrawView(APIView):
@@ -289,7 +377,7 @@ class ResignGameView(APIView):
         except ChessGame.DoesNotExist:
             return Response({"error: Game not found"}, status=status.HTTP_404_NOT_FOUND)
         
-class GameCurrentStateView(APIView):
+class GetGameView(APIView):
     permission_classes = [IsAuthenticated]
     @swagger_auto_schema(
         operation_description="Get the current state of the chess game",

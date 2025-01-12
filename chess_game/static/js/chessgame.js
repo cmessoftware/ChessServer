@@ -7,7 +7,7 @@
   const $pgn = $('#pgn')
   const VALID_GAME_OVER_REASON = [
     'checkmate', 'stalemate', 'threefold_repetition', 'insufficient_material', 
-    'fifty_moves', 'time_control', 'draw_offer', 'resign', 'agreed_draw'
+    'fifty_moves', 'time_control', 'resign', 'agreed_draw'
   ];
   const onDrop = async (source, piece) => {
     const targetSquare = (source?.square || source).target; // Ensure valid target
@@ -15,19 +15,35 @@
     console.log('sourceSquare', sourceSquare);
     console.log('targetSquare', targetSquare);
 
-    // Update Sync the board with the game
-    board.move(`${sourceSquare}-${targetSquare}`);
     // Set the position using the FEN string
-    game.load(board.fen());
-    console.log('board.fen()', board.fen());
+    console.log('Before board.fen()', board.fen());
+    console.log('Before game fen', game.fen());
+    // Update Sync the board with the game
 
+    const gameMove = game.move({ from: sourceSquare, to: targetSquare, promotion: 'q' });
+    if (gameMove === null) {
+      console.log('Invalid move:', sourceSquare, targetSquare);
+      return 'snapback';
+    }
+    //If the move is valid, update the board position
+    board.position(game.fen());
+    console.log('After game fen', game.fen());
+    console.log('After board fen', board.fen());
+
+
+    //if the game is over, do not allow any moves
+    if (game.game_over()) 
+    {
+      console.log('game is over');
+      return 'snapback';
+    }
+    
     const onDragStartFen = localStorage.getItem('fen');
     console.log('onDragStartFen', onDragStartFen);
     console.log('game fen', game.fen());
     console.log('chessboard.board', board.fen());
 
-    game.load(board.fen());
-
+   
     if (!(source?.square || source) || !(source?.square || source).target) {
       console.error('Invalid source or target:', (source?.square || source), targetSquare);
       return 'snapback';
@@ -44,50 +60,7 @@
     console.log('Move data:', moveData);
     console.log(`Trying move ${moveData.moves}`);
     console.log(`Current turn: ${game.turn()}`);
-
-    // Check if there's a piece on the source square
-    const pieceInfo = game.get(sourceSquare);
-    console.log('Piece info:', pieceInfo);
-    if (!pieceInfo) {
-      console.error(`Piece at source square: ${sourceSquare} not found`);
-      return 'snapback';
-    }
-    console.log(`Piece on source square: ${pieceInfo.type} (${pieceInfo.color})`);
-
-    const legalMoves = game.moves({ square: sourceSquare, verbose: true });
-    console.log('Legal moves for sourceSquare:', legalMoves);
-
-    const isMoveLegal = legalMoves.some(
-      move => move.from === sourceSquare && move.to === targetSquare
-    );
-
     console.log('Current game position (FEN):', game.fen());
-
-    if (!isMoveLegal) {
-      console.error(`Move from ${sourceSquare} to ${targetSquare} is not legal.`);
-      return 'snapback';
-    }
-
-    // Check for promotion (optional)
-    const isPromotion = pieceInfo.type === 'p' && (
-      (targetSquare[1] === '8' && pieceInfo.color === 'w') ||
-      (targetSquare[1] === '1' && pieceInfo.color === 'b')
-    );
-
-    const movePiece = game.move({
-      from: sourceSquare,
-      to: targetSquare,
-      promotion: isPromotion ? 'q' : undefined // Promote to queen if needed
-    });
-
-    console.log('movePiece:', movePiece);
-
-    if (movePiece === null) {
-      console.error(`Invalid move: ${sourceSquare} to ${targetSquare}`);
-      return 'snapback';
-    }
-
-    console.log(`Move made: ${movePiece.san}`);
 
     move(moveData)
       .then(data => {
@@ -113,21 +86,18 @@
 
   const onDragStart = async (piece) => {
     console.log('gameId', localStorage.getItem('gameId'));
-    // do not pick up pieces if the game is over
-    if (game.game_over) return false;
+    console.log('piece', piece);
 
-    // only pick up pieces for the side to move
-    if ((game.turn === 'white' && piece.piece.search(/^b/) !== -1) ||
-        (game.turn === 'black' && piece.piece.search(/^w/) !== -1)) {
-      console.log('Invalid piece', piece.piece.search(/^b/), piece.piece.search(/^w/));
+    if(game.game_over() === true) {
+      console.log('game is over');
       return false;
     }
 
-    //update game object status
-    game.load(chessgame.board);
-    localStorage.setItem('fen', game.fen());
-    console.log('onDragStart fen',game.fen());
-
+    // Prevent dragging if the game is over or it's not the player's turn
+    if ((game.turn() === 'w' && piece.piece.startsWith('b')) || 
+    (game.turn() === 'b' && piece.piece.startsWith('w'))) {
+        return false;
+    }
   };
 
   const handleTokenError = (error) => {
@@ -265,6 +235,12 @@
     $fen.html(game.fen())
     $pgn.html(game.pgn())
  }
+
+ const isOwnPiece = (targetSquare, playerColor) => {
+      const piece = game.get(targetSquare);
+      return piece && piece.color === playerColor;
+  };
+
 
  const gameOver = (gameOverDate, winner, endType) => {
 

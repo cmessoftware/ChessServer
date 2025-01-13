@@ -23,6 +23,7 @@
     <!-- Load Bootstrap JS and dependencies -->
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+    <script src="{% static 'js/modals.js' %}?v={{ timestamp }}"></script>
     <script src="{% static 'js/chessgame.js' %}?v={{ timestamp }}"></script>
    <style>
         #board {
@@ -69,8 +70,8 @@
                     </div>
                     <div class="row">
                         <button id="startBtn" onclick="startGame()">Start Game</button>
-                        <button id="resignBtn" onclick="resign()">Resign</button>
                         <button id="resetBtn" onclick="resetPosition()">Reset Position</button>
+                        <button id="resignBtn" class="btn btn-warning" onclick="openModal('Confirm Resignation', 'Are you sure you want to resign?', 'Cancel', 'Resign', handleResignation)">Resign</button>
                         <button id="undoBtn" onclick="undoMove()" disabled=true title="(Pending)Undo the last move">Undo Move</button>
                         <button id="clearBtn" onclick="clearBoard()" title="Clear the board">Clear Board</button>
                         <button id="forwardBtn" onclick="forwardMove()" title="Move forward">Get Board</button>

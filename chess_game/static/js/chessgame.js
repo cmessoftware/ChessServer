@@ -127,7 +127,7 @@
       showMessage('Please login to make a move', 'danger');
       return null;
     }
-    console.log('accessToken', accessToken);
+    console.log('move accessToken', accessToken);
   
     try {
       const response = await fetch(`http://localhost:8000/api/move/${moveData.gameId}/`, {
@@ -183,7 +183,7 @@
     // checkmate?
     if (game.in_checkmate()) {
       status = 'Game over, ' + moveColor + ' is in checkmate.'
-      gameOver(new Date(), gameStatus.turn, 'checkmate');
+      gameOver(gameStatus.turn, 'checkmate');
     }
   
     // draw?
@@ -219,7 +219,7 @@
         default:
           reason = 'unknown';
       }
-      gameOver(new Date(), '*', reason);
+      gameOver('*', reason);
     }  
     // game still on
     else {
@@ -241,25 +241,39 @@
       return piece && piece.color === playerColor;
   };
 
+ const resign = () => {
+    
+    const resignedPlayer = game.turn();
+    console.log('resignedPlayer', resignedPlayer);
+    gameOver(resignedPlayer === 'w'? 'b' :'w', 'resign');
 
- const gameOver = (gameOverDate, winner, endType) => {
+  }
 
-    if (!VALID_END_GAME.includes(endType)) {
-      console.error('Invalid end type:', endType);
+
+ const gameOver = (winner, gameOverReason) => {
+
+    const accessToken = localStorage.getItem('accessToken');
+    if (!accessToken || accessToken === null || accessToken === undefined) {
+      showMessage('Please login to make a move', 'danger');
+      return null;
+    }
+    console.log('gameover accessToken', accessToken);
+
+    if (!VALID_GAME_OVER_REASON.includes(gameOverReason)) {
+      console.error('Invalid game over reason:', gameOverReason);
       return;
     }
 
-    console.log('Game over:', gameOverDate, winner, gameOverReason);
+    console.log('Game over:', winner, gameOverReason);
     // Call the DRF endpoint
-    fetch('http://localhost:8000/api/game-over/', {
+    fetch(`http://localhost:8000/api/game-over/${localStorage.getItem('gameId')}/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        'Authorization': `Bearer ${accessToken}`
       },
       body: JSON.stringify({
-        gameId: localStorage.getItem('gameId'),
-        game_over_date: gameOverDate,
+        game_over_date: new Date(),
         winner: winner,
         game_over_reason: gameOverReason
       })

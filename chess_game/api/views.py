@@ -21,13 +21,14 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 import random
-from math import trunc
 
 
 
 STOCKFISH_PATH = r"C:\app\stockfish\stockfish-windows-x86-64-avx2.exe"
 stockfish = Stockfish(STOCKFISH_PATH)
 DRAW_RESULT = "1/2-1/2"
+WHITE_WIN = "1-0"
+BLACK_WIN = "0-1"
 ENGINE_PLAYER = "stockfish"
 
 
@@ -234,15 +235,12 @@ class GameOverView(APIView):
     def post(self, request, pk):
         try:
             game = ChessGame.objects.get(pk=pk)
-            result = request.data.get("result")
             game_over_date = request.data.get("game_over_date")
             winner = request.data.get("winner")
             game_over_reason = request.data.get("game_over_reason")
             
-            if is_null_or_empty(result):
-                return Response({"error": "Result not provided."}, status=status.HTTP_400_BAD_REQUEST)
-            
-            game.result = result
+
+            game.result = WHITE_WIN if winner == "w" else BLACK_WIN 
             game.game_over = True
             game.game_over_date = game_over_date
             game.winner = winner

@@ -9,27 +9,48 @@
     'checkmate', 'stalemate', 'threefold_repetition', 'insufficient_material', 
     'fifty_moves', 'time_control', 'resign', 'agreed_draw'
   ];
-  const onDrop = async (source, piece) => {
-    const targetSquare = (source?.square || source).target; // Ensure valid target
-    const sourceSquare = (source?.square || source).source; // Ensure valid source
+  const INITIAL_FEN_WHITE = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+  const INITIAL_FEN_BLACK = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1';
+
+  const onDrop = async (...args) => {
+    console.log('args', args);
+    const [source] = args;
+    const sourceSquare = source.source;
+    const targetSquare = source.target;
+    const piece = source.piece;
+
+    game.load(board.fen());
+    board.fen(game.fen());
+
     console.log('sourceSquare', sourceSquare);
     console.log('targetSquare', targetSquare);
-
-    // Set the position using the FEN string
+    console.log('piece', piece);
+    console.log('orientation', source.orientation);
+    console.log('game turn', game.turn());
     console.log('Before board.fen()', board.fen());
     console.log('Before game fen', game.fen());
-    // Update Sync the board with the game
 
+    if(game.game_over()) {
+      console.log('game is over');
+      showMessage('Game is over', 'danger');
+      return 'snapback';
+    }
+
+     
     const gameMove = game.move({ from: sourceSquare, to: targetSquare, promotion: 'q' });
     if (gameMove === null) {
       console.log('Invalid move:', sourceSquare, targetSquare);
       return 'snapback';
     }
+
+    game.load(board.fen());
+    board.fen(game.fen());
+    
     //If the move is valid, update the board position
     board.position(game.fen());
     console.log('After game fen', game.fen());
     console.log('After board fen', board.fen());
-
+    console.log('game turn', game.turn());
 
     //if the game is over, do not allow any moves
     if (game.game_over()) 
@@ -85,17 +106,20 @@
 
 
   const onDragStart = async (piece) => {
+
     console.log('gameId', localStorage.getItem('gameId'));
     console.log('piece', piece);
-
-    if(game.game_over() === true) {
+    const resign = localStorage.getItem('resign');
+    if(game.game_over() === true || resign) {
       console.log('game is over');
+      showMessage('Game is over', 'danger');
       return false;
     }
 
     // Prevent dragging if the game is over or it's not the player's turn
-    if ((game.turn() === 'w' && piece.piece.startsWith('b')) || 
-    (game.turn() === 'b' && piece.piece.startsWith('w'))) {
+    if ((turn === 'w' && piece.piece.startsWith('b')) || 
+    (turn === 'b' && piece.piece.startsWith('w'))) {
+        console.log('Not your turn');
         return false;
     }
   };
@@ -160,6 +184,12 @@
       return null;
     };
 
+    if(gameStatus.error != null || gameStatus.error != undefined) {
+      console.error('Error:', gameStatus.error);
+      showMessage(gameStatus.error, 'danger');
+      return null;
+    }
+
     console.log('gameStatus:', gameStatus);
     //Sync the board with the game
     board.position(gameStatus.board,'slow')
@@ -179,10 +209,19 @@
     if (gameStatus.turn === 'black') {
       moveColor = 'Black'
     }
+
+    if(gameStatus.in_resignation) {
+      status = 'Game over, ' + moveColor + ' has resigned.'
+      console.log('status', status);
+      showMessage(status, 'success');
+      gameOver(gameStatus.turn, 'resign');
+    }
   
     // checkmate?
     if (game.in_checkmate()) {
       status = 'Game over, ' + moveColor + ' is in checkmate.'
+      console.log('status', status);
+      showMessage(status, 'success');
       gameOver(gameStatus.turn, 'checkmate');
     }
   
@@ -219,6 +258,8 @@
         default:
           reason = 'unknown';
       }
+      console.log('game over reason', reason);
+      showMessage(reason, 'success');
       gameOver('*', reason);
     }  
     // game still on
@@ -245,6 +286,9 @@
     
     const resignedPlayer = game.turn();
     console.log('resignedPlayer', resignedPlayer);
+    localStorage.setItem('resign', {'resignedPlayer': resignedPlayer, 
+                                        'gameId': localStorage.getItem('gameId'),
+                                        'gameOverReason': 'resign'});
     gameOver(resignedPlayer === 'w'? 'b' :'w', 'resign');
 
   }
@@ -393,6 +437,9 @@
     }
     console.log('startGame accessToken', accessToken);
 
+    // Reset the previous game state
+    localStorage.removeItem('resign');
+
     game.reset();
     board.position(game.fen());
 
@@ -419,8 +466,12 @@
       console.log('StartGame server response:', data);
       handleTokenError(data);
       board.orientation(data.orientation);
+      console.log('StartGame game.turn()', game.turn());
       board.position(data.board);
       localStorage.setItem("gameId",data.id);
+      const initial_fen = data.turn === 'w' ? INITIAL_FEN_WHITE : INITIAL_FEN_BLACK;
+      game.load(initial_fen);
+      console.log('game.turn()', game.turn());
     })
     .catch(error => {
       console.error('Error:', error);

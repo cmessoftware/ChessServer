@@ -122,6 +122,7 @@ class StartGameView(APIView):
         game.initial_time = request.data.get("initial_time")
         game.increment = request.data.get("increment")
         game.result = "*" if request.data.get("result") == "" or request.data.get("result") == None else request.data.get("result")
+        game.turn = "w" if game.orientation == "white" else "b"
         game.save()
         
         #white player makes the first move

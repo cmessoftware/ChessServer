@@ -1,0 +1,40 @@
+#board {
+    margin: 10px auto 0 auto;
+}
+.list-group-item {
+    width: 20ch;
+    text-align: left;
+}
+
+#fen {
+    width: 50ch;
+    font-size:smaller;
+}
+
+#gameId {
+    width: 5ch;
+    font-size: small;
+}
+
+.container {
+    margin-top: 20px;
+}
+.row {
+    margin-top: 10px;
+}
+#alertBox {
+    display: none;
+    margin-top: 10px;
+}
+#status {
+    font-size: small;
+}
+#pgn {
+    font-weight: bold;
+}
+#pgwAccordion {
+    margin-top: 10px;
+}
+.list-group {
+    margin-top: 10px;
+}

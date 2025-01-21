@@ -1,10 +1,23 @@
 
-  
-  const  game = new Chess()
+  const getChessInstance = (() => {
+    let instance;
+    return () => {
+      if (!instance) {
+        instance = new Chess();
+      }
+      return instance;
+    };
+  })();
+
+  const getHistory = (() => {
+    let history = [];
+    return () => {
+      return history;
+    };
+  })();
+
+  const game = getChessInstance();
   let  board = null
-  const $status = $('#status')
-  const $fen = $('#fen')
-  const $pgn = $('#pgn')
   const VALID_GAME_OVER_REASON = [
     'checkmate', 'stalemate', 'threefold_repetition', 'insufficient_material', 
     'fifty_moves', 'time_control', 'resign', 'agreed_draw'
@@ -29,40 +42,43 @@
     console.log('game turn', game.turn());
     console.log('Before board.fen()', board.fen());
     console.log('Before game fen', game.fen());
+    console.log('history', getHistory());
 
-    if(game.game_over()) {
-      console.log('game is over');
-      showMessage('Game is over', 'danger');
-      return 'snapback';
-    }
-
-     
     const gameMove = game.move({ from: sourceSquare, to: targetSquare, promotion: 'q' });
     if (gameMove === null) {
       console.log('Invalid move:', sourceSquare, targetSquare);
+      
+      console.log('Current game state:', game.fen());
+      revertLastState();
+      console.log('board position after undo', board.position());
+      
+      // Highlight the target square with a visual signal (e.g., border color change)
+      board.setSquareStyle(targetSquare, {
+        border: '2px solid red', // Red border to indicate invalid move
+        boxShadow: 'inset 0 0 1em red', // Red glow effect});
+      });
+      setTimeout(() => {
+        board.setSquareStyle(targetSquare, { border: '' });
+      }, 1000);  // Removes the border after 1 second
+ 
       return 'snapback';
     }
 
-    game.load(board.fen());
-    board.fen(game.fen());
+    //Update the custom history
+    saveState();
     
+    
+    // Log successful move
+    console.log('Game history after legal move', game.history());
+    console.log('Move made:', gameMove);
+    console.log('Game history after move:', game.history());
+    console.log('FEN after move:', game.fen());
+   
     //If the move is valid, update the board position
     board.position(game.fen());
     console.log('After game fen', game.fen());
     console.log('After board fen', board.fen());
     console.log('game turn', game.turn());
-
-    //if the game is over, do not allow any moves
-    if (game.game_over()) 
-    {
-      console.log('game is over');
-      return 'snapback';
-    }
-    
-    const onDragStartFen = localStorage.getItem('fen');
-    console.log('onDragStartFen', onDragStartFen);
-    console.log('game fen', game.fen());
-    console.log('chessboard.board', board.fen());
 
    
     if (!(source?.square || source) || !(source?.square || source).target) {
@@ -107,6 +123,7 @@
 
   const onDragStart = async (piece) => {
 
+    saveState();
     console.log('gameId', localStorage.getItem('gameId'));
     console.log('piece', piece);
     const resign = localStorage.getItem('resign');
@@ -117,8 +134,8 @@
     }
 
     // Prevent dragging if the game is over or it's not the player's turn
-    if ((turn === 'w' && piece.piece.startsWith('b')) || 
-    (turn === 'b' && piece.piece.startsWith('w'))) {
+    if ((game.turn() === 'w' && piece.piece.startsWith('b')) || 
+    (game.turn() === 'b' && piece.piece.startsWith('w'))) {
         console.log('Not your turn');
         return false;
     }
@@ -151,8 +168,7 @@
       showMessage('Please login to make a move', 'danger');
       return null;
     }
-    console.log('move accessToken', accessToken);
-  
+    
     try {
       const response = await fetch(`http://localhost:8000/api/move/${moveData.gameId}/`, {
         method: 'POST',
@@ -164,7 +180,8 @@
       });
       const data = await response.json();
       console.log('MakeMove server response:', data);
-      console.log('data', data);
+      const history = getHistory();
+      saveState();    
       return data;
     } catch (error) {
       console.error('Error:', error);
@@ -179,6 +196,10 @@
   
   const updateStatus = async (gameStatus) => {
    
+    const $status = $('#status')
+    const $fen = $('#fen')
+    const $gameId = $('#gameId')
+
     if(gameStatus === null || gameStatus === undefined) {
       //gameStatus = await loadGame(localStorage.getItem('gameId'));
       return null;
@@ -189,10 +210,8 @@
       showMessage(gameStatus.error, 'danger');
       return null;
     }
-
-    console.log('gameStatus:', gameStatus);
     //Sync the board with the game
-    board.position(gameStatus.board,'slow')
+    board.position(gameStatus.board)
     // Set the position using the FEN string
     const success = game.load(gameStatus.board);
 
@@ -203,10 +222,10 @@
         console.error('Invalid FEN:', game.fen());
     }
 
-    let status = ''
+    let status = 'game in progress'
 
     let moveColor = 'White'
-    if (gameStatus.turn === 'black') {
+    if (gameStatus.turn === 'b') {
       moveColor = 'Black'
     }
 
@@ -264,18 +283,45 @@
     }  
     // game still on
     else {
-      status = moveColor + ' to move'
+      status = 'In progress'
   
       // check?
       if (game.in_check()) {
         status += ', ' + moveColor + ' is in check'
       }
     }
+
+    console.log('status', status);
+    console.log('fen', game.fen());
+    console.log('gameId', localStorage.getItem('gameId'));
   
-    $status.html(status)
-    $fen.html(game.fen())
-    $pgn.html(game.pgn())
+    $status.text(status)
+    $fen.text(game.fen())
+    $gameId.text(localStorage.getItem('gameId'))
  }
+
+ // Function to save the current game state in the custom history
+const saveState = () => {
+  const customHistory = getHistory();
+  customHistory.push({
+      fen: game.fen(),
+      position: board.position(),
+  });
+}
+
+// Function to revert to the last valid state
+const revertLastState = () => {
+  const customHistory = getHistory();
+  console.log('customHistory', customHistory);
+  if (customHistory.length > 0) {
+      const lastState = customHistory.pop();
+      console.log('lastState', lastState);
+      game.load(lastState.fen); // Revert game state
+      setTimeout(() => {
+        board.position(lastState.position, true); //Revert board position
+    }, 50);
+  }
+}
 
  const isOwnPiece = (targetSquare, playerColor) => {
       const piece = game.get(targetSquare);
@@ -342,6 +388,7 @@
     const config = {
       draggable: true,
       position: 'start',
+      dropOffBoard: 'snapback', // Snapback invalid moves
       onDragStart: onDragStart,
       onDrop: onDrop,
       onSnapEnd: onSnapEnd,
@@ -349,6 +396,8 @@
       pieceTheme: '/static/img/chesspieces/wikipedia/{piece}.png'
     }
 
+   
+  
     board = Chessboard2('#board', config);
     //updateStatus()
   });
@@ -481,9 +530,6 @@
       showMessage(error.message, 'danger');
     }); 
 
-
-    
-
   const getChessBoardMove = (movement) => {
     const source = movement.trim().substring(0, 2);
     const target = movement.trim().substring(2, 4);
@@ -522,6 +568,10 @@
         <span aria-hidden="true">&times;</span>
       </button>`;
     document.getElementById('alertBox').appendChild(alertDiv);
+    setTimeout(() => {
+      alertDiv.remove();
+    }, 2000);
+
   }
 
   const loadGame = async (id) => {

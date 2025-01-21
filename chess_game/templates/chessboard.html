@@ -17,7 +17,6 @@
     <script src="https://unpkg.com/@chrisoakman/chessboard2@0.5.0/dist/chessboard2.min.js"
     integrity="sha384-/KwQCjA1GWovZNV3QDVtvSMDzO4reGgarF/RqHipr7hIUElH3r5zNl9WEPPOBRIF"
     crossorigin="anonymous"></script>  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
-    <script src="{% static 'js/chessExtensions.js' %}?v={{ timestamp }}"></script>
     <!-- Load Bootstrap CSS -->
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <!-- Load Bootstrap JS and dependencies -->
@@ -25,24 +24,8 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
     <script src="{% static 'js/modals.js' %}?v={{ timestamp }}"></script>
     <script src="{% static 'js/chessgame.js' %}?v={{ timestamp }}"></script>
-   <style>
-        #board {
-            margin: 20px auto;
-        }
-        .list-group-item {
-            width: 20ch;
-            text-align: left;
-        }
-
-        {% comment %} .list-group-item-value {
-            width: 50ch;
-            text-align: left;
-        } {% endcomment %}
-
-        #fen {
-            width: 15ch;
-        }
-    </style>
+    <link href="{% static 'css/chessgame.css' %}?v={{ timestamp }}" rel="stylesheet">
+         
 </head>
 <body>
     <div class="container">
@@ -52,23 +35,51 @@
                     <div class="col-md-12 text-center">
                         <h2>CMESS CHESS</h2>
                     </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-12 text-center">
                         <div id="alertBox"></div>
-                        <div id="board" style="width: 400px; align-self: center;"></div>
-                     </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-12 text-center">
-                        <label for="status" class="text-left">Status:</label>
-                        <div id="status"></div>
-                        <label for="fen" class="text-left">FEN:</label>
-                        <div id="fen"></div>
-                        <label for="pgn" class="text-left">PGN:</label>
-                        <div id="pgn"></div> 
                     </div>
                     <div class="row">
+                    <div class="col-md-9 text-center">
+                        <div id="board" style="width: 400px; align-self: center;"></div>
+                     </div>
+                    <div class="col-md-3 text-left">
+                        <div class="row">
+                            <div class="col-md-6"><strong>Game Id:</strong></div>
+                            <div class="col-md-6" id="gameId"></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6"><strong>Status:</strong></div>
+                            <div class="col-md-6" id="status"></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6"><strong>Round:</strong></div>
+                            <div class="col-md-6" id="round"></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6"><strong>White Player:</strong></div>
+                            <div class="col-md-6" id="whitePlayer"></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6"><strong>Black Player:</strong></div>
+                            <div class="col-md-6" id="blackPlayer"></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6"><strong>Current FEN:</strong></div>
+                            <div class="col-md-6" id="fen"></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6"><strong>Open:</strong></div>
+                            <div class="col-md-6" id="open"></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6"><strong>Result:</strong></div>
+                            <div class="col-md-6" id="result"></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6"><strong>Result Reason:</strong></div>
+                            <div class="col-md-6" id="resultReason"></div>
+                        </div>
+                    </div>
+                   <div class="row mt-50">
                         <button id="startBtn" onclick="startGame()">Start Game</button>
                         <button id="resetBtn" onclick="resetPosition()">Reset Position</button>
                         <button id="resignBtn" class="btn btn-warning" onclick="openModal('Confirm Resignation', 'Are you sure you want to resign?', 'Cancel', 'Resign', handleResignation)">Resign</button>
@@ -77,7 +88,7 @@
                         <button id="forwardBtn" onclick="forwardMove()" title="Move forward">Get Board</button>
                         <button id="flipBtn" onclick="flipBoard()" title="Flip the board">Flip Board</button>
                         <button id="getFenBtn" onclick="getFEN()" title="Get the FEN">Get FEN</button>
-                        <button id="getPgnBtn" onclick="getPGN()" title="Get the PGN">Get PGN</button>
+                  
                         <button id="saveGameBtn" onclick="saveGame()" title="Save the game">Save Game</button>
                        <input type="text" id="fen" placeholder="Enter FEN" title="Enter FEN">
                         <button id="setFenBtn" onclick="applyFEN()" title="Set the position using FEN">Set Position</button>

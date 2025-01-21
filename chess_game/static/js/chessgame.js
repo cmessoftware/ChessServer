@@ -18,9 +18,6 @@
 
   const game = getChessInstance();
   let  board = null
-  const $status = $('#status')
-  const $fen = $('#fen')
-  const $pgn = $('#pgn')
   const VALID_GAME_OVER_REASON = [
     'checkmate', 'stalemate', 'threefold_repetition', 'insufficient_material', 
     'fifty_moves', 'time_control', 'resign', 'agreed_draw'
@@ -137,8 +134,8 @@
     }
 
     // Prevent dragging if the game is over or it's not the player's turn
-    if ((turn === 'w' && piece.piece.startsWith('b')) || 
-    (turn === 'b' && piece.piece.startsWith('w'))) {
+    if ((game.turn() === 'w' && piece.piece.startsWith('b')) || 
+    (game.turn() === 'b' && piece.piece.startsWith('w'))) {
         console.log('Not your turn');
         return false;
     }
@@ -199,6 +196,10 @@
   
   const updateStatus = async (gameStatus) => {
    
+    const $status = $('#status')
+    const $fen = $('#fen')
+    const $gameId = $('#gameId')
+
     if(gameStatus === null || gameStatus === undefined) {
       //gameStatus = await loadGame(localStorage.getItem('gameId'));
       return null;
@@ -221,10 +222,10 @@
         console.error('Invalid FEN:', game.fen());
     }
 
-    let status = ''
+    let status = 'game in progress'
 
     let moveColor = 'White'
-    if (gameStatus.turn === 'black') {
+    if (gameStatus.turn === 'b') {
       moveColor = 'Black'
     }
 
@@ -282,17 +283,21 @@
     }  
     // game still on
     else {
-      status = moveColor + ' to move'
+      status = 'In progress'
   
       // check?
       if (game.in_check()) {
         status += ', ' + moveColor + ' is in check'
       }
     }
+
+    console.log('status', status);
+    console.log('fen', game.fen());
+    console.log('gameId', localStorage.getItem('gameId'));
   
-    $status.html(status)
-    $fen.html(game.fen())
-    $pgn.html(game.pgn())
+    $status.text(status)
+    $fen.text(game.fen())
+    $gameId.text(localStorage.getItem('gameId'))
  }
 
  // Function to save the current game state in the custom history
@@ -391,6 +396,8 @@ const revertLastState = () => {
       pieceTheme: '/static/img/chesspieces/wikipedia/{piece}.png'
     }
 
+   
+  
     board = Chessboard2('#board', config);
     //updateStatus()
   });

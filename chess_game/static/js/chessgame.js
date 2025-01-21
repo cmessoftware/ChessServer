@@ -615,11 +615,12 @@ const revertLastState = () => {
  
   // Apply the FEN position from the input field
   const applyFEN = () => {
-    const fen = document.getElementById('fen').value.trim();
+    const loadfen = document.getElementById('loadfen').value;
+    console.log('Current FEN:', loadfen);
     const alertBox = document.getElementById('alertBox');
-    if (fen) {
+    if (loadfen) {
       try {
-        board.position(fen);
+        board.position(loadfen);
         alertBox.innerHTML = '<div class="alert alert-success" role="alert">Position set successfully!</div>';
       } catch (error) {
         alertBox.innerHTML = '<div class="alert alert-danger" role="alert">Invalid FEN string. Please enter a valid FEN.</div>';

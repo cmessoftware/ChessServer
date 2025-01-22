@@ -26,6 +26,14 @@
     display: none;
     margin-top: 10px;
 }
+
+/* #alertBox {
+    border: 2px solid red;
+    background-color: yellow;
+    color: black;
+    padding: 10px;
+} */
+
 #status {
     font-size: small;
 }

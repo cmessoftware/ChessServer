@@ -618,7 +618,7 @@ const revertLastState = () => {
     const loadfen = document.getElementById('loadfen').value;
     console.log('Current FEN:', loadfen);
     const alertBox = document.getElementById('alertBox');
-    if (loadfen) {
+    if (loadfen != '' && loadfen != null && loadfen != undefined) {
       try {
         board.position(loadfen);
         alertBox.innerHTML = '<div class="alert alert-success" role="alert">Position set successfully!</div>';
@@ -628,6 +628,12 @@ const revertLastState = () => {
     } else {
       alertBox.innerHTML = '<div class="alert alert-warning" role="alert">Please enter a FEN string.</div>';
     }
+
+    alertBox.style.display = 'block';
+
+    setTimeout(() => {
+      alertBox.style.display = 'none';
+    }, 2000);
   }
 
   window.applyFEN = applyFEN; 

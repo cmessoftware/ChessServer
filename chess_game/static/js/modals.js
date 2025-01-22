@@ -7,6 +7,12 @@
       hideModal();
     }
 
+    const handleStartGame = () => {
+      startGame();
+      hideModal();
+    }
+
+
     const createModal =  () => {
       // Create modal container
       const modalHTML = `
@@ -18,6 +24,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
               <div class="modal-body" id="dynamicModalBody"></div>
+              <div id="bodyHtmlContent"></div>
               <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" id="modalCancelBtn" data-bs-dismiss="modal"></button>
                 <button type="button" class="btn btn-danger" id="modalConfirmBtn"></button>
@@ -29,20 +36,25 @@
       document.body.insertAdjacentHTML('beforeend', modalHTML);
     }
 
-    function openModal(title, bodyText, cancelText, confirmText, confirmAction) {
+    function openModal(title, bodyHtmlContent, cancelText, confirmText, confirmAction) {
       if (!document.getElementById('dynamicModal')) {
         createModal();
       }
     
       document.getElementById('dynamicModalLabel').textContent = title;
-      document.getElementById('dynamicModalBody').textContent = bodyText;
+      document.getElementById('dynamicModalBody').innerHTML = bodyHtmlContent;
       document.getElementById('modalCancelBtn').textContent = cancelText;
       document.getElementById('modalConfirmBtn').textContent = confirmText;
     
       const confirmBtn = document.getElementById('modalConfirmBtn');
-      confirmBtn.onclick = null;
-      confirmBtn.addEventListener('click', confirmAction);
+     
+      // Remove all previous event listeners
+      const newConfirmBtn = confirmBtn.cloneNode(true);
+      confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
 
+      // Add the new event listener
+      newConfirmBtn.addEventListener('click', confirmAction);
+      
       const cancelBtn = document.getElementById('modalCancelBtn');
       cancelBtn.onclick = null;
       cancelBtn.addEventListener('click', hideModal);

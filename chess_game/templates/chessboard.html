@@ -32,10 +32,13 @@
         <div class="row">
             <div class="col-md-12">
                 <div class="row justify-content-center">
-                    <div class="col-md-12 text-center">
-                        <h2>CMESS CHESS</h2>
-                    </div>
-                        <div id="alertBox"></div>
+                    <div class="row">
+                        <div class="col-md-12 text-center">
+                            <h2>CMESS Chess</h2>
+                        </div>
+                        <div class="col-md-12 text-center">
+                            <div id="alertBox"></div>
+                        </div>
                     </div>
                     <div class="row">
                     <div class="col-md-9 text-center">
@@ -80,24 +83,22 @@
                         </div>
                     </div>
                    <div class="row mt-50">
-                        <button id="startBtn" onclick="startGame()">Start Game</button>
-                        <button id="resetBtn" onclick="resetPosition()">Reset Position</button>
-                        <button id="resignBtn" class="btn btn-warning" onclick="openModal('Confirm Resignation', 'Are you sure you want to resign?', 'Cancel', 'Resign', handleResignation)">Resign</button>
-                        <button id="undoBtn" onclick="undoMove()" disabled=true title="(Pending)Undo the last move">Undo Move</button>
-                        <button id="clearBtn" onclick="clearBoard()" title="Clear the board">Clear Board</button>
-                        <button id="forwardBtn" onclick="forwardMove()" title="Move forward">Get Board</button>
-                        <button id="flipBtn" onclick="flipBoard()" title="Flip the board">Flip Board</button>
-                        <button id="getFenBtn" onclick="getFEN()" title="Get the FEN">Get FEN</button>
-                  
-                        <button id="saveGameBtn" onclick="saveGame()" title="Save the game">Save Game</button>
-                       <input type="text" id="loadfen" placeholder="Enter FEN" title="Enter FEN">
-                        <button id="setFenBtn" onclick="applyFEN()" title="Set the position using FEN">Set Position</button>
-                        <button id="loadGameBtn" onclick="loadGame(1)" title="Load the game" alt="Pending">Load Game</button>
+                        <button id="startBtn" class="btn btn-success mr-1" onclick="openModal('Start new game','Are you start new game?','Cancel','Ok',handleStartGame)">Start Game</button>
+                        <button id="resetBtn" class="btn btn-danger mr-1" onclick="resetPosition()">Reset Position</button>
+                        <button id="resignBtn" class="btn btn-warning mr-1" onclick="openModal('Confirm Resignation', 'Are you sure you want to resign?', 'Cancel', 'Resign', handleResignation)">Resign</button>
+                        <button id="undoBtn" class="mr-1" onclick="undoMove()" disabled=true title="(Pending)Undo the last move">Undo Move</button>
+                        <button id="clearBtn" class="mr-1" onclick="clearBoard()" title="Clear the board">Clear Board</button>
+                        <button id="forwardBtn" class="mr-1" onclick="forwardMove()" title="Move forward">Get Board</button>
+                        <button id="flipBtn" class="mr-1"onclick="flipBoard()" title="Flip the board">Flip Board</button>
+                        <button id="saveGameBtn" class="mr-1" onclick="saveGame()" title="Save the game">Save Game</button>
+                        <input type="text" id="loadfen" placeholder="Enter FEN" title="Enter FEN">
+                        <button id="setFenBtn" class="btn btn-warning mr-1" onclick="applyFEN()" title="Set the position using FEN">Set Position</button>
+                        <button id="loadGameBtn" class="mr-1" onclick="loadGame(1)" title="Load the game" alt="Pending">Load Game</button>
                         <input type="text" id="username" placeholder="Username" title="Enter your username">
                         <input type="password" id="password" placeholder="Password" title="Enter your password">
-                        <button id="loginBtn" onclick="login(document.getElementById('username').value, document.getElementById('password').value)" title="Login">Login</button>
-                        <button id="logoutBtn" onclick="logout()" title="Logout">Logout</button>
-                        <button id="registerBtn" onclick="register(document.getElementById('username').value, document.getElementById('password').value)" title="Register">Register</button>
+                        <button id="loginBtn" class="btn btn-primary mr-1" onclick="login(document.getElementById('username').value, document.getElementById('password').value)" title="Login">Login</button>
+                        <button id="logoutBtn" class="mr-1" onclick="logout()" title="Logout">Logout</button>
+                        <button id="registerBtn" class="mr-1" onclick="register(document.getElementById('username').value, document.getElementById('password').value)" title="Register">Register</button>
                     </div>
                 </div>
             </div>
